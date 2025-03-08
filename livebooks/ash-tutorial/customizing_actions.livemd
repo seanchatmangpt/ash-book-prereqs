@@ -1,0 +1,268 @@
+# Ash: 5 - Customizing Actions
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## Customizing Actions
+
+### Customizing Actions
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="attributes.livemd">Attributes</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="relationships.livemd">Relationships</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+### In this tutorial, you will add custom actions on the Issue resource
+
+Create 2 custom actions, `:open` and `:close`.
+
+Custom actions allow you to attach *semantics* to actions.
+
+* Instead of *Creating* an issue, you can *Open* an issue.
+* Instead of *Updating* the state of an issue, you can *Close* it.
+
+In addition, you can customize the behavior of these actions. For example, closing an issue only sets the state to `:closed`.
+
+It also allows you to define what attributes can be set when calling that action. For example, for the `:open` action, you can only allow the `:title` and `:body` to be set.
+It does not make sense to set the `:state` in this case as it should always be `:open`. For the closing action, you won't allow any attributes to be set.
+
+Custom actions go inside the `actions do ... end` block.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+  actions do
+    defaults [:read]
+
+    # Custom actions go inside the actions do ... end block.
+    create :open do
+      # You then can define the accepted attributes like so:
+      accept [:title, :body]
+    end
+
+    # The :close action uses update.
+    update :close do
+      # No input should be accepted here
+      accept []
+
+      # This only changes the attribute
+      change set_attribute(:state, :closed)
+    end
+  end
+```
+
+That's it! You defined your first custom actions.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  defmodule BitHub.Issues.Issue do
+    use Ash.Resource,
+      domain: BitHub.Issues,
+      data_layer: Ash.DataLayer.Ets
+
+    actions do
+      defaults [:read]
+
+      create :open do
+        # This action should only accept title and body
+        accept [:title, :body]
+      end
+
+      update :close do
+        # No input should be accepted here
+        accept []
+
+        change set_attribute(:state, :closed)
+      end
+    end
+
+    attributes do
+      uuid_primary_key :id
+
+      attribute :title, :string, allow_nil?: false
+      attribute :body, :string
+      attribute :state, :atom do
+        constraints [one_of: [:open, :closed]]
+        default :open
+        allow_nil? false
+      end
+
+      create_timestamp :created_at
+      update_timestamp :updated_at
+    end
+  end
+
+  defmodule BitHub.Issues do
+    use Ash.Domain
+
+    resources do
+      resource BitHub.Issues.Issue
+    end
+  end
+  ```
+
+  </div>
+</details>
+
+```elixir
+defmodule BitHub.Issues.Issue do
+  use Ash.Resource,
+    domain: BitHub.Issues,
+    data_layer: Ash.DataLayer.Ets
+
+  actions do
+    defaults [:read]
+
+    # <-- Add the open and close actions here.
+  end
+
+  attributes do
+    uuid_primary_key :id
+
+    attribute :title, :string, allow_nil?: false
+    attribute :body, :string
+    attribute :state, :atom do
+      constraints [one_of: [:open, :closed]]
+      default :open
+      allow_nil? false
+    end
+
+    create_timestamp :created_at
+    update_timestamp :updated_at
+  end
+end
+
+defmodule BitHub.Issues do
+  use Ash.Domain
+
+  resources do
+    resource BitHub.Issues.Issue
+  end
+end
+```
+
+## Open an Issue
+
+Open a ticket.
+
+Remember, when creating a resource, use a changeset (`Ash.Changeset.for_create/3`), which gets passed to `Ash.create!/1`. But in this case use the `:open` argument instead of `:create`. Then set the `:status` to `:closed` and see if it works.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Tutorial.Support.Ticket
+  |> Ash.Changeset.for_create(:open, %{subject: "My Subject"})
+  |> Ash.create!()
+  ```
+
+  </div>
+</details>
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Tutorial.Support.Ticket
+  |> Ash.Changeset.for_create(:open, %{subject: "My Subject", status: :closed})
+  |> Ash.create!()
+  ```
+
+  </div>
+</details>
+
+The output when trying to set `:status` should look something like this:
+
+```
+** (Ash.Error.Invalid) Input Invalid
+
+* Invalid value provided for status: cannot be changed.
+```
+
+This is because you set the accepted attributes to `:subject` and `:description` only.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+Create a Ticket and store it in the `ticket` variable.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  ticket =
+    Tutorial.Support.Ticket
+    |> Ash.Changeset.for_create(:open, %{subject: "My Subject"})
+    |> Ash.create!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+
+```
+
+## Close a Ticket
+
+Close the `ticket` you created in the previous section.
+
+Remember to use `Ash.Changeset.for_update/2` with the `:close` action.
+
+To update use `Ash.update!/1`.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  ticket
+  |> Ash.Changeset.for_update(:close)
+  |> Ash.update!()
+  ```
+
+  </div>
+</details>
+
+```elixir
+
+```
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="attributes.livemd">Attributes</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="relationships.livemd">Relationships</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>

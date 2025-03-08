@@ -1,0 +1,309 @@
+# Ash: 4 - Attributes
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## Attributes
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="querying.livemd">Querying</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="customizing_actions.livemd">Customizing Actions</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+### In this tutorial, you will add and configure Attributes to an Issue resource
+
+The `Issue` resource will represent a GitHub-style issue in BitHub.
+
+It will have 3 main attributes:
+
+* A `title` that serves as the issue's subject
+* A `body` containing the issue description
+* A `state` which can be either `:open` or `:closed`
+
+It will also have 2 attributes for keeping track of when the issue was *created* and when it was *last updated*.
+
+#### Title
+
+The `title` is required; an issue cannot be created without a title.  
+You can enforce this by setting `allow_nil?` to `false`, like so:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+attribute :title, :string, allow_nil?: false
+```
+
+#### Body
+
+The `body` is optional and can be left empty. It is simply a `:string` type.
+
+#### State
+
+`:state` is more structured:
+
+* It is of type `:atom`
+* It can only have the values `:open` or `:closed`
+* By default, it is `:open`
+* It cannot be `nil`
+
+Attributes are set within a `do end` block like so:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+attribute :state, :atom do
+  # Constraints ensure only valid values can be used.
+  constraints [one_of: [:open, :closed]]
+  
+  default :open
+  allow_nil? false
+end
+```
+
+#### Keeping track of Created and Updated timestamps
+
+Ash provides [create_timestamp](https://hexdocs.pm/ash/dsl-ash-resource.html#attributes-create_timestamp) and [update_timestamp](https://hexdocs.pm/ash/dsl-ash-resource.html#attributes-update_timestamp) to track when the resource was first created and when it was last updated.
+
+To add this, include the following in the attributes block:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+create_timestamp :created_at
+update_timestamp :updated_at
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  defmodule BitHub.Issues.Issue do
+    use Ash.Resource,
+      domain: BitHub.Issues,
+      data_layer: Ash.DataLayer.Ets
+
+    actions do
+      defaults [:read]
+
+      create :create do
+        accept [:title, :body, :state]
+      end
+    end
+
+    attributes do
+      uuid_primary_key :id
+
+      attribute :title, :string, allow_nil?: false
+      attribute :body, :string
+
+      # State is either `open` or `closed`
+      attribute :state, :atom do
+        constraints [one_of: [:open, :closed]]
+        default :open
+        allow_nil? false
+      end
+
+      create_timestamp :created_at
+      update_timestamp :updated_at
+    end
+  end
+
+  defmodule BitHub.Issues do
+    use Ash.Domain
+
+    resources do
+      resource BitHub.Issues.Issue
+    end
+  end
+  ```
+
+  </div>
+</details>
+
+```elixir
+defmodule BitHub.Issues.Issue do
+  use Ash.Resource,
+    domain: BitHub.Issues,
+    data_layer: Ash.DataLayer.Ets
+
+  actions do
+    defaults [:read]
+
+    create :create do
+      accept [:title, :body, :state]
+    end
+  end
+
+  attributes do
+    uuid_primary_key :id
+
+    # Define the main attributes for an issue
+    attribute :title, :string, allow_nil?: false
+    attribute :body, :string
+
+    attribute :state, :atom do
+      constraints [one_of: [:open, :closed]]
+      default :open
+      allow_nil? false
+    end
+
+    create_timestamp :created_at
+    update_timestamp :updated_at
+  end
+end
+
+defmodule BitHub.Issues do
+  use Ash.Domain
+
+  resources do
+    resource BitHub.Issues.Issue
+  end
+end
+
+```
+
+## Creating an Issue
+
+We are going to create an `Issue` without any attributes. This will show an error.
+
+Remember, when creating a resource use a changeset (`Ash.Changeset.for_create/3`), which gets passed to `Ash.create!/1`.
+
+The error output will look like this:
+
+<pre style="color: var(--ansi-color-red);border-radius: .5rem; border-width: 1px;padding: 1rem;" class="font-editor" data-border="data-border">
+** (Ash.Error.Invalid) 
+Bread Crumbs:
+  > Error returned from: BitHub.Issues.Issue.create
+
+Invalid Error
+
+* attribute title is required
+  (ash 3.4.54) lib/ash/error/changes/required.ex:4:
+</pre>
+
+<p>
+It will show the Ash version and line number. Don't be afraid to look at the source code.
+</p>
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  BitHub.Issues.Issue
+  |> Ash.Changeset.for_create(:create, %{})
+  |> Ash.create!()
+  ```
+
+  </div>
+</details>
+
+```elixir
+BitHub.Issues.Issue
+|> Ash.Changeset.for_create(:create, %{})
+|> Ash.create!()
+```
+
+Now create an `Issue` with a `title`
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  BitHub.Issues.Issue
+  |> Ash.Changeset.for_create(:create, %{title: "This is the title"})
+  |> Ash.create!()
+  ```
+
+  </div>
+</details>
+
+```elixir
+BitHub.Issues.Issue
+|> Ash.Changeset.for_create(:create, %{title: "This is the title"})
+|> Ash.create!()
+```
+
+Now create an Issue with the `state` set to `:closed`
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  BitHub.Issues.Issue
+  |> Ash.Changeset.for_create(:create, %{title: "This is the title", state: :closed})
+  |> Ash.create!()
+  ```
+
+  </div>
+</details>
+
+```elixir
+BitHub.Issues.Issue
+|> Ash.Changeset.for_create(:create, %{title: "This is the title", state: :closed})
+|> Ash.create!()
+```
+
+## Latest created Issue
+
+Since you added a creation date, you can now query on the latest created Issue.
+
+First, sort using the `Ash.Query.sort/2` function by `Ash.Query.sort(created_at: :desc)`
+
+Then limit the amount of records with the `Ash.Query.limit/2` function by doing `Ash.Query.limit(1)`
+
+Finally call `Ash.read_one!()` on the query.
+
+*Hint: Use a pipeline*
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  BitHub.Issues.Issue
+  |> Ash.Query.sort(created_at: :desc)
+  |> Ash.Query.limit(1)
+  |> Ash.read_one!()
+  ```
+
+  </div>
+</details>
+
+```elixir
+BitHub.Issues.Issue
+|> Ash.Query.sort(created_at: :desc)
+|> Ash.Query.limit(1)
+|> Ash.read_one!()
+```
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="querying.livemd">Querying</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="customizing_actions.livemd">Customizing Actions</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>

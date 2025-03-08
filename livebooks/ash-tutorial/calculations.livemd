@@ -1,0 +1,113 @@
+# Ash: 9 - Calculations
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## Calculations
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="aggregates.livemd">Aggregates</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex hidden">
+<a class="flex mr-2" style="color: #61758a;" href="domain.livemd">Domain</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+[Calculations](https://hexdocs.pm/ash/calculations.html) in Ash allow for displaying complex values as a top level value of a resource.
+
+Create a `full_name` calculation on the User resource.
+
+You already have the `first_name` and `last_name` defined, you can get the `full_name` by concatenating them with a space in the middle.
+
+First, add a `calculations do ... end` block.
+
+Then inside this block, add `calculate :full_name, :string, expr(first_name <> " " <> last_name)`
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  calculations do
+    calculate :full_name, :string, expr(first_name <> " " <> last_name)
+  end
+  ```
+
+  </div>
+</details>
+
+### Enter your solution
+
+```elixir
+defmodule Tutorial.Accounts.User do
+  use Ash.Resource,
+    domain: Tutorial.Accounts,
+    data_layer: Ash.DataLayer.Ets
+
+  actions do
+    defaults([:read])
+
+    create :create do
+      accept([:first_name, :last_name])
+    end
+  end
+
+  attributes do
+    uuid_primary_key(:id)
+    attribute(:first_name, :string, allow_nil?: false)
+    attribute(:last_name, :string, allow_nil?: false)
+  end
+
+  # <--- Add the calculations here
+end
+```
+
+```elixir
+defmodule Tutorial.Accounts do
+  use Ash.Domain
+
+  resources do
+    resource(Tutorial.Accounts.User)
+  end
+end
+```
+
+## Create a User
+
+Create a User and load in the `full_name`
+
+```elixir
+Tutorial.Accounts.User
+|> Ash.Changeset.for_create(:create, %{first_name: "Joe", last_name: "Armstrong"})
+|> Ash.create!()
+|> Ash.load!([:full_name])
+```
+
+This is the most basic example of a calculation. Note that calculations allow you to do any arbitrary operation on the Resource. More on this inside the [documentation](https://hexdocs.pm/ash/calculations.html).
+
+<!-- livebook:{"break_markdown":true} -->
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="aggregates.livemd">Aggregates</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex hidden">
+<a class="flex mr-2" style="color: #61758a;" href="domain.livemd">Domain</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>

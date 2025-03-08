@@ -1,0 +1,295 @@
+# Ash: 3 - Querying
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## But First, Data Persistence
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="actions.livemd">Actions</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="attributes.livemd">Attributes</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+So far we have just created changesets, but we have not actually created any instances of a resource, also known as records.  Before we can play around with querying, we need to add a data layer.  It is much more common to use [Postgres](https://github.com/ash-project/ash_postgres) in production, but we will use [ETS data layer](https://hexdocs.pm/ash/dsl-ash-datalayer-ets.html#ets) for the remainder of this tutorial to keep dependencies to a minimum.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+ use Ash.Resource,
+      domain: BitHub,
+      data_layer: Ash.DataLayer.Ets
+```
+
+## In this tutorial you will do basic Query and CRUD operations
+
+But first you need to enable all basic **CRUD** operations.
+
+Do this by adding default `:read` and `:destroy` actions, as well as `:create` and `:update` actions that accept `[:name]`.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  defmodule BitHub.User do
+    use Ash.Resource,
+      domain: BitHub,
+      data_layer: Ash.DataLayer.Ets
+
+    actions do
+      defaults [:read, :destroy]
+
+      create :create do
+        accept [:name]
+      end
+
+      update :update do
+        accept [:name]
+      end
+    end
+
+    attributes do
+      uuid_primary_key :id
+      attribute :name, :string
+    end
+  end
+
+  defmodule BitHub do
+    use Ash.Domain
+
+    resources do
+      resource BitHub.User
+    end
+  end
+  ```
+
+  </div>
+</details>
+
+### Enter your solution
+
+```elixir
+defmodule BitHub.User do
+  use Ash.Resource,
+    domain: BitHub,
+    data_layer: Ash.DataLayer.Ets
+
+  actions do
+    defaults [:read, :destroy]
+
+    create :create do
+      accept [:name]
+    end
+
+    update :update do
+      accept [:name]
+    end
+  end
+
+  attributes do
+    uuid_primary_key :id
+    attribute :name, :string
+  end
+end
+
+defmodule BitHub do
+  use Ash.Domain
+
+  resources do
+    resource BitHub.User
+  end
+end
+```
+
+## Creating
+
+Add 2 Users to the database.
+
+* One with the name "Joe Armstrong"
+* One with your name
+
+You can create a `User` by:
+
+* Creating a Changeset with `Ash.Changeset.for_create(BitHub.User, :create, %{name: "Your Name"})`,
+* Then giving the changeset to `Ash.create!()`.
+
+*Hint: Use a pipeline*
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  BitHub.User
+  |> Ash.Changeset.for_create(:create, %{name: "The Name"})
+  |> Ash.create!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+BitHub.User
+|> Ash.Changeset.for_create(:create, %{name: "Joe Armstrong"})
+|> Ash.create!()
+```
+
+```elixir
+BitHub.User
+|> Ash.Changeset.for_create(:create, %{name: "Sean Chatman"})
+|> Ash.create!()
+```
+
+## Reading
+
+Now, read all the generated Users.
+
+Call `Ash.read!/1` with the `BitHub.User` module.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  BitHub.User
+  |> Ash.read!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+BitHub.User
+|> Ash.read!()
+```
+
+Now fetch the "Joe Armstrong" User.
+
+You can achieve this by introducing a filter.
+
+First you'll need to `require Ash.Query`
+
+Then call `Ash.Query.filter(name == "Joe Armstrong")` with the `BitHub.User`.
+
+Put the result into the `joe` variable. `Ash.read!/1` returns a list, so make sure to extract the single returned value out of that list.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  require Ash.Query
+
+  [joe] =
+    BitHub.User
+    |> Ash.Query.filter(name == "Joe Armstrong")
+    |> Ash.read!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+require Ash.Query
+
+[joe] =
+  BitHub.User
+  |> Ash.Query.filter(name == "Joe Armstrong")
+  |> Ash.read!()
+```
+
+You'll use the `joe` variable in the next sections.
+
+## Updating
+
+Now change `Joe Armstrong`'s name to `Neil Armstrong`.
+
+You can do this by providing the `Ash.Changeset.for_update/3` with:
+
+* the resource you want to change, in this case `joe`
+* the `:update` atom
+* a map of the values you want to change, in this case `%{name: "Neil Armstrong"}`
+
+Then apply the changeset by calling `Ash.update!/1` with the changeset.
+
+*Hint: Using a pipeline might be a good idea.*
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  joe
+  |> Ash.Changeset.for_update(:update, %{name: "Neil Armstrong"})
+  |> Ash.update!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+joe
+|> Ash.Changeset.for_update(:update, %{name: "Neil Armstrong"})
+|> Ash.update!()
+```
+
+## Destroying
+
+Finally, remove `joe` from the database.
+
+Do this using the `Ash.destroy!/1` function.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Ash.destroy!(joe)
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+Ash.destroy!(joe)
+```
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="actions.livemd">Actions</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="attributes.livemd">Attributes</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>

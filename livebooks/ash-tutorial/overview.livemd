@@ -1,0 +1,37 @@
+# Ash: 0 - Overview
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## Overview
+
+In this tutorial you will create Ash Resources, query on them and use ETS as your data storage. You won't be building an overarching application, instead you'll build Resources that introduce you to Ash concepts.
+
+Each tutorial builds on top of the previous one, it is therefore recommended to start the tutorial **sequentially from the beginning** as each section introduces new concepts that will later be used.
+
+The best way to follow the tutorial is reading the instructions in the tutorial, coming up with your own solution, and then **verifying with the proposed solution**. It is also recommended to **not copy paste** code.
+
+The goal of this tutorial is to get you familiar with the basic concepts of Ash, and give you a good sense of what's possible. It serves as a primer for the [Ash documentation](https://hexdocs.pm/ash/get-started.html). Feel free to consult this documentation alongside the tutorial to learn more. That being said, the documenation shouldn't be necessary to complete the tutorial.
+
+Have fun!
+
+<!-- livebook:{"break_markdown":true} -->
+
+1. [Resources](resources.livemd)
+2. [Actions](actions.livemd)
+3. [Querying](querying.livemd)
+4. [Attributes](attributes.livemd)
+5. [Customizing Actions](customizing_actions.livemd)
+6. [Relationships](relationships.livemd)
+7. [Code Interfaces](code_interfaces.livemd)
+8. [Aggregates](aggregates.livemd)
+9. [Calculations](calculations.livemd)
+
+## Contributing?
+
+_Anything missing? Any errors? Tutorials out of date? [Contributions are welcome!](https://github.com/ash-project/ash_tutorial)_
+
+_When contributing, please follow the guidelines in [diataxis](https://diataxis.fr/tutorials/)._

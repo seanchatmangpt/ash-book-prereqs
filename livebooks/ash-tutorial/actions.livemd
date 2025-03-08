@@ -1,0 +1,93 @@
+# Ash: 2 - Actions
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## What is an Action?
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="resources.livemd">Resources</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="querying.livemd">Querying</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+Actions are much simpler: an action describes a <span title="Create, Read, Update, Delete">CRUD</span> operation that can be performed on a resource, but using whatever language makes the most sense for your given resource.  For example, you may have a `publish` action on a `BlogPost` resource that changes the resource to be publicly visible.  Under CRUD, this would be an `update` operation, but calling it the "publish action" more fully conveys what the operation does.
+
+An action is defined on a resource in an `actions do ... end` block.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+  actions do
+    create :create do
+      accept [:name]
+    end
+  end
+```
+
+<!-- livebook:{"break_markdown":true} -->
+
+Adding that to our `Resource` module from earlier,
+
+```elixir
+defmodule BitHub.User do
+  use Ash.Resource,
+    domain: BitHub
+
+  attributes do
+    uuid_primary_key :id
+    attribute :name, :string
+  end
+
+  actions do
+    create :create do
+      accept [:name]
+    end
+  end
+end
+
+defmodule BitHub do
+  use Ash.Domain
+
+  resources do
+    resource BitHub.User
+  end
+end
+```
+
+We can now use `for_create/3` to create a changeset.
+
+```elixir
+BitHub.User
+|> Ash.Changeset.for_create(:create, %{name: "My Name"})
+```
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="./resources.livemd">Resources</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="./overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="./querying.livemd">Querying</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
