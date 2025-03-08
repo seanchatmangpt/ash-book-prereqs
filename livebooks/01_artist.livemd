@@ -1,0 +1,627 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Artist Data
+
+```elixir
+Mix.install([:faker, :fuzzy_compare])
+
+```
+
+## Section
+
+```elixir
+# Define a function that generates a single artist
+generate_artist = fn () ->
+  # Generate a random timestamp in the past 30 days
+  created_at = Faker.DateTime.backward(30)  
+
+  # Ensure `updated_at` is always after `created_at`
+  updated_at = Faker.DateTime.between(created_at, DateTime.utc_now())  
+
+  # Return an artist map with generated data
+  %{
+    id: Faker.UUID.v4(),            # Unique identifier
+    name: Faker.Person.name(),       # Generates a realistic artist name
+    biography: Faker.Lorem.sentence(), # Short artist description
+    slug: nil,                       # Will be generated later
+    created_at: created_at,          # Timestamp when created
+    updated_at: updated_at           # Timestamp when last updated
+  }
+end
+
+# Call the function once to preview the result
+# The `.()` is required because `generate_artist` is an anonymous function.
+generate_artist.()
+
+# In Livebook, the last expression in a cell is automatically displayed.
+# Since `generate_artist.()` returns a map, Livebook shows that map as output.
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  id: "e65ff327-2085-41e2-ab0c-8cf7c93688cd",
+  name: "Issac Watsica PhD",
+  slug: nil,
+  created_at: ~U[2025-02-09 05:24:31.120567Z],
+  updated_at: ~U[2025-03-04 14:11:04.832686Z],
+  biography: "Voluptatem dolor ab repellat quam dolores."
+}
+```
+
+```elixir
+# Generate a list of 8 fake artists
+# `Enum.map/2` takes a range (1 to 8) and applies the function to each number.
+# We use `_` because the actual number isn't needed—just the loop count.
+artists = Enum.map(1..8, fn _ -> 
+  # Call `generate_artist.()` to create a new artist in each iteration
+  generate_artist.() 
+end)
+
+# Livebook automatically displays the last evaluated expression.
+# Since `artists` is a list of maps, it will be rendered as a table in Livebook.
+artists
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[
+  %{
+    id: "86ccb26c-eac7-45ea-8b67-4eabc101b368",
+    name: "Ewald Price",
+    slug: nil,
+    created_at: ~U[2025-02-17 15:07:26.947503Z],
+    updated_at: ~U[2025-03-06 13:14:25.054757Z],
+    biography: "Nihil laborum magnam aut ipsum id neque voluptatem eos ex."
+  },
+  %{
+    id: "a218fa30-1474-43c5-864a-d512b41d1666",
+    name: "Jewell Bruen",
+    slug: nil,
+    created_at: ~U[2025-02-18 14:38:52.887512Z],
+    updated_at: ~U[2025-02-28 20:43:57.944533Z],
+    biography: "Recusandae voluptatem delectus accusantium ab sapiente fuga."
+  },
+  %{
+    id: "2f8505ba-6163-4a5c-82bd-899433879be2",
+    name: "Modesta Prohaska",
+    slug: nil,
+    created_at: ~U[2025-02-19 09:16:01.407243Z],
+    updated_at: ~U[2025-03-01 09:12:15.523373Z],
+    biography: "Ipsam et voluptatum non ducimus voluptatem autem vero quaerat?"
+  },
+  %{
+    id: "aa05a01a-d635-4fd9-a685-bebb84db887b",
+    name: "Arthur Jacobs",
+    slug: nil,
+    created_at: ~U[2025-02-10 21:53:54.933469Z],
+    updated_at: ~U[2025-03-04 08:46:51.162192Z],
+    biography: "Est illum tempore ipsa adipisci!"
+  },
+  %{
+    id: "4c052a3a-ffec-4c7a-a1f2-2f71681272e4",
+    name: "Ms. Berneice Williamson III",
+    slug: nil,
+    created_at: ~U[2025-03-03 07:48:28.305352Z],
+    updated_at: ~U[2025-03-04 09:53:05.656641Z],
+    biography: "Temporibus eius saepe repudiandae debitis aut possimus rem."
+  },
+  %{
+    id: "f4054ba6-0409-48f1-891a-683473485e40",
+    name: "Vincent Erdman",
+    slug: nil,
+    created_at: ~U[2025-03-01 09:36:01.091945Z],
+    updated_at: ~U[2025-03-02 20:39:48.621278Z],
+    biography: "Autem rerum quia sapiente provident."
+  },
+  %{
+    id: "896ab668-cea2-4dac-85fb-bb24ce6ab6f5",
+    name: "Nash Dicki IV",
+    slug: nil,
+    created_at: ~U[2025-02-27 06:38:38.163815Z],
+    updated_at: ~U[2025-03-01 15:21:16.492619Z],
+    biography: "Est est id at cupiditate nam quia eos?"
+  },
+  %{
+    id: "3a6c5a1d-43e3-4fa7-b5eb-14045f19ae52",
+    name: "Cathryn Beier",
+    slug: nil,
+    created_at: ~U[2025-03-03 07:04:18.094176Z],
+    updated_at: ~U[2025-03-07 04:30:11.507846Z],
+    biography: "Voluptatem quam ea ut sunt illo."
+  }
+]
+```
+
+```elixir
+# Function to generate a URL-friendly slug from an artist name
+slugify = fn (name) ->
+  name
+  |> :unicode.characters_to_nfd_binary()      # Normalize characters (e.g., "ö" → "o")
+  |> String.replace(~r/[\p{Mn}]/u, "")        # Remove diacritical marks
+  |> String.downcase()                        # Convert to lowercase
+  |> String.replace(~r/[^a-z0-9]+/, "-")      # Replace non-alphanumeric chars with "-"
+  |> String.trim("-")                         # Remove leading/trailing hyphens
+end
+
+# Example usage: Generate a slug for a band with special characters
+slugify.("Mötley Crüe!")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"motley-crue"
+```
+
+```elixir
+# Import ExUnit to use assert in Livebook
+import ExUnit.Assertions
+
+# Utility module for artist-related helper functions
+defmodule ArtistUtils do
+  # Function to generate a URL-friendly slug from an artist name
+  def slugify(name) do
+    name
+    |> :unicode.characters_to_nfd_binary()      # Normalize characters (e.g., "ö" → "ö")
+    |> String.replace(~r/[\p{Mn}]/u, "")        # Remove diacritical marks
+    |> String.downcase()                        # Convert to lowercase
+    |> String.replace(~r/[^a-z0-9]+/, "-")      # Replace non-alphanumeric chars with "-"
+    |> String.trim("-")                         # Remove leading/trailing hyphens
+  end
+
+  # Function to generate a random `created_at` timestamp in the past 30 days
+  def fake_created_at() do
+    Faker.DateTime.backward(30)
+  end
+
+  # Function to generate an `updated_at` timestamp that is always after `created_at`
+  def fake_updated_at(created_at) do
+    Faker.DateTime.between created_at, DateTime.utc_now()
+  end
+end
+
+# ✅ Test slugify function
+assert ArtistUtils.slugify("Mötley Crüe!") == "motley-crue"
+assert ArtistUtils.slugify("AC/DC") == "ac-dc"
+assert ArtistUtils.slugify("Guns N' Roses") == "guns-n-roses"
+
+# ✅ Test fake_created_at function
+created_at = ArtistUtils.fake_created_at()
+assert DateTime.compare(created_at, DateTime.utc_now()) == :lt  # created_at must be in the past
+
+# ✅ Test fake_updated_at function using the previously generated `created_at`
+updated_at = ArtistUtils.fake_updated_at(created_at)
+assert DateTime.compare(updated_at, created_at) == :gt  # updated_at must be after created_at
+
+# ✅ If all assertions pass, return success message
+"All ArtistUtils tests passed!"
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"All ArtistUtils tests passed!"
+```
+
+```elixir
+defmodule ArtistFactory do
+  # Function to create an artist, generating a fake name and biography if none are provided
+  def create_artist(name \\ Faker.Person.name(), biography \\ Faker.Lorem.sentence()) do
+    # Generate timestamps using ArtistUtils
+    created_at = ArtistUtils.fake_created_at()
+    updated_at = ArtistUtils.fake_updated_at(created_at)
+
+    # Generate a slug from the artist name
+    slug = ArtistUtils.slugify(name)
+
+    # Return an artist map with structured data
+    %{
+      id: Faker.UUID.v4(),    # Unique identifier
+      name: name,             # Provided or generated name
+      biography: biography,   # Provided or generated biography
+      slug: slug,             # Generated slug
+      created_at: created_at, # Timestamp when created
+      updated_at: updated_at  # Timestamp when last updated
+    }
+  end
+end
+
+# ✅ Test `create_artist/1` with a provided name and biography
+ArtistFactory.create_artist("Mötley Crüe!", "Heavy metal legends")
+
+# ✅ Test `create_artist/1` with a provided name but a fake biography
+ArtistFactory.create_artist("Nirvana")
+
+# ✅ Test `create_artist/1` with a completely random artist
+ArtistFactory.create_artist()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  id: "43c0129f-1ca3-47bf-8fc9-c35c2775d976",
+  name: "Carlotta Grant",
+  slug: "carlotta-grant",
+  created_at: ~U[2025-03-04 11:08:28.512139Z],
+  updated_at: ~U[2025-03-07 17:55:51.454098Z],
+  biography: "Enim consequatur nihil quia qui facere reiciendis voluptatum sint."
+}
+```
+
+```elixir
+# Generate a list of 8 fake artists using ArtistFactory
+artists = Enum.map(1..8, fn _ -> ArtistFactory.create_artist() end)
+
+# Create a map where the slug is the key, and the artist struct is the value
+artist_map = Enum.reduce(artists, %{}, fn artist, acc ->
+  Map.put(acc, artist.slug, artist)
+end)
+
+artist_map
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "abdullah-hickle" => %{
+    id: "5966b386-5edd-496d-9619-1a9114a6b258",
+    name: "Abdullah Hickle",
+    slug: "abdullah-hickle",
+    created_at: ~U[2025-02-21 01:08:09.195340Z],
+    updated_at: ~U[2025-02-21 23:33:09.972654Z],
+    biography: "Officiis pariatur sunt modi amet."
+  },
+  "favian-roberts" => %{
+    id: "413cc74b-d363-43ba-b58c-7bd579eeed15",
+    name: "Favian Roberts",
+    slug: "favian-roberts",
+    created_at: ~U[2025-02-06 02:00:27.436379Z],
+    updated_at: ~U[2025-02-13 10:09:01.980977Z],
+    biography: "Dolorum libero quod ut fugit ea incidunt qui?"
+  },
+  "hertha-maggio" => %{
+    id: "89ef7fb3-413e-495a-8094-a33b3c33b7c5",
+    name: "Hertha Maggio",
+    slug: "hertha-maggio",
+    created_at: ~U[2025-02-26 14:05:52.695687Z],
+    updated_at: ~U[2025-03-07 06:59:35.143694Z],
+    biography: "Aliquid eveniet excepturi voluptates."
+  },
+  "jody-jakubowski" => %{
+    id: "2dd3cd97-99f7-45f3-9c2d-df37eed7dea5",
+    name: "Jody Jakubowski",
+    slug: "jody-jakubowski",
+    created_at: ~U[2025-02-12 00:43:24.017708Z],
+    updated_at: ~U[2025-02-24 04:49:32.062391Z],
+    biography: "Ut dolores aliquid corporis quos."
+  },
+  "milford-beahan" => %{
+    id: "1825a60c-91df-42ff-b278-67f2149286de",
+    name: "Milford Beahan",
+    slug: "milford-beahan",
+    created_at: ~U[2025-02-07 02:20:55.287223Z],
+    updated_at: ~U[2025-02-11 22:55:10.496631Z],
+    biography: "Tempora quibusdam debitis qui officia distinctio!"
+  },
+  "monica-hahn" => %{
+    id: "a786ac9a-25f9-4a4b-93ae-e34ee63a5f70",
+    name: "Monica Hahn",
+    slug: "monica-hahn",
+    created_at: ~U[2025-03-01 23:44:29.368410Z],
+    updated_at: ~U[2025-03-07 21:57:43.512727Z],
+    biography: "Est saepe id assumenda non vitae qui!"
+  },
+  "mrs-catherine-lakin" => %{
+    id: "a72920df-506f-4757-8c1b-c2a135fcf4d0",
+    name: "Mrs. Catherine Lakin",
+    slug: "mrs-catherine-lakin",
+    created_at: ~U[2025-02-11 06:41:04.950593Z],
+    updated_at: ~U[2025-02-23 19:53:40.228718Z],
+    biography: "Maiores velit quasi explicabo maxime harum perferendis et accusamus."
+  },
+  "nedra-watsica" => %{
+    id: "e9e08e66-6f04-48e7-a992-4179e6a5bc5f",
+    name: "Nedra Watsica",
+    slug: "nedra-watsica",
+    created_at: ~U[2025-02-09 16:01:54.327194Z],
+    updated_at: ~U[2025-02-23 04:09:45.824234Z],
+    biography: "Incidunt minima officia omnis!"
+  }
+}
+```
+
+```elixir
+# Function to retrieve an artist by their slug from the artist map
+get_artist_by_slug = fn (artist_map, slug) ->
+  Map.get(artist_map, slug)
+end
+
+# Example usage: Pick the first slug from the map and fetch the corresponding artist
+first_slug = List.first(Map.keys(artist_map))
+retrieved_artist = get_artist_by_slug.(artist_map, first_slug)
+
+# Display the retrieved artist
+retrieved_artist
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  id: "5966b386-5edd-496d-9619-1a9114a6b258",
+  name: "Abdullah Hickle",
+  slug: "abdullah-hickle",
+  created_at: ~U[2025-02-21 01:08:09.195340Z],
+  updated_at: ~U[2025-02-21 23:33:09.972654Z],
+  biography: "Officiis pariatur sunt modi amet."
+}
+```
+
+```elixir
+# Function to retrieve an artist by their ID from the artist map
+get_artist_by_id = fn (artist_map, id) ->
+  Map.get(artist_map, id)
+end
+
+
+# Simulating an API request where we get an artist ID from user input
+# user_provided_id = "id-no-existing"
+user_provided_id = "929abf58-b737-4bf7-b34f-caa6dd4d74a1"  # This would typically come from an API request
+
+# Retrieve the artist using the provided ID
+retrieved_artist = get_artist_by_id.(artist_map, user_provided_id)
+
+# Handle the case where the artist is not found
+if retrieved_artist do
+  {:ok, retrieved_artist}
+else
+  available_ids = artist_map |> Map.values() |> Enum.map(& &1.id)
+
+  error_map = %{
+    error_message: "Artist not found for ID: #{user_provided_id}",
+    available_artist_ids: available_ids
+  }
+
+  {:error, error_map}
+end
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:error,
+ %{
+   error_message: "Artist not found for ID: 929abf58-b737-4bf7-b34f-caa6dd4d74a1",
+   available_artist_ids: ["5966b386-5edd-496d-9619-1a9114a6b258",
+    "413cc74b-d363-43ba-b58c-7bd579eeed15", "89ef7fb3-413e-495a-8094-a33b3c33b7c5",
+    "2dd3cd97-99f7-45f3-9c2d-df37eed7dea5", "1825a60c-91df-42ff-b278-67f2149286de",
+    "a786ac9a-25f9-4a4b-93ae-e34ee63a5f70", "a72920df-506f-4757-8c1b-c2a135fcf4d0",
+    "e9e08e66-6f04-48e7-a992-4179e6a5bc5f"]
+ }}
+```
+
+```elixir
+artist_map
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "abdullah-hickle" => %{
+    id: "5966b386-5edd-496d-9619-1a9114a6b258",
+    name: "Abdullah Hickle",
+    slug: "abdullah-hickle",
+    created_at: ~U[2025-02-21 01:08:09.195340Z],
+    updated_at: ~U[2025-02-21 23:33:09.972654Z],
+    biography: "Officiis pariatur sunt modi amet."
+  },
+  "favian-roberts" => %{
+    id: "413cc74b-d363-43ba-b58c-7bd579eeed15",
+    name: "Favian Roberts",
+    slug: "favian-roberts",
+    created_at: ~U[2025-02-06 02:00:27.436379Z],
+    updated_at: ~U[2025-02-13 10:09:01.980977Z],
+    biography: "Dolorum libero quod ut fugit ea incidunt qui?"
+  },
+  "hertha-maggio" => %{
+    id: "89ef7fb3-413e-495a-8094-a33b3c33b7c5",
+    name: "Hertha Maggio",
+    slug: "hertha-maggio",
+    created_at: ~U[2025-02-26 14:05:52.695687Z],
+    updated_at: ~U[2025-03-07 06:59:35.143694Z],
+    biography: "Aliquid eveniet excepturi voluptates."
+  },
+  "jody-jakubowski" => %{
+    id: "2dd3cd97-99f7-45f3-9c2d-df37eed7dea5",
+    name: "Jody Jakubowski",
+    slug: "jody-jakubowski",
+    created_at: ~U[2025-02-12 00:43:24.017708Z],
+    updated_at: ~U[2025-02-24 04:49:32.062391Z],
+    biography: "Ut dolores aliquid corporis quos."
+  },
+  "milford-beahan" => %{
+    id: "1825a60c-91df-42ff-b278-67f2149286de",
+    name: "Milford Beahan",
+    slug: "milford-beahan",
+    created_at: ~U[2025-02-07 02:20:55.287223Z],
+    updated_at: ~U[2025-02-11 22:55:10.496631Z],
+    biography: "Tempora quibusdam debitis qui officia distinctio!"
+  },
+  "monica-hahn" => %{
+    id: "a786ac9a-25f9-4a4b-93ae-e34ee63a5f70",
+    name: "Monica Hahn",
+    slug: "monica-hahn",
+    created_at: ~U[2025-03-01 23:44:29.368410Z],
+    updated_at: ~U[2025-03-07 21:57:43.512727Z],
+    biography: "Est saepe id assumenda non vitae qui!"
+  },
+  "mrs-catherine-lakin" => %{
+    id: "a72920df-506f-4757-8c1b-c2a135fcf4d0",
+    name: "Mrs. Catherine Lakin",
+    slug: "mrs-catherine-lakin",
+    created_at: ~U[2025-02-11 06:41:04.950593Z],
+    updated_at: ~U[2025-02-23 19:53:40.228718Z],
+    biography: "Maiores velit quasi explicabo maxime harum perferendis et accusamus."
+  },
+  "nedra-watsica" => %{
+    id: "e9e08e66-6f04-48e7-a992-4179e6a5bc5f",
+    name: "Nedra Watsica",
+    slug: "nedra-watsica",
+    created_at: ~U[2025-02-09 16:01:54.327194Z],
+    updated_at: ~U[2025-02-23 04:09:45.824234Z],
+    biography: "Incidunt minima officia omnis!"
+  }
+}
+```
+
+```elixir
+real_artists = %{
+  "the-beatles" => %{id: "1", name: "The Beatles", genre: "Rock"},
+  "michael-jackson" => %{id: "2", name: "Michael Jackson", genre: "Pop"},
+  "madonna" => %{id: "3", name: "Madonna", genre: "Pop"},
+  "led-zeppelin" => %{id: "4", name: "Led Zeppelin", genre: "Rock"},
+  "beyonce" => %{id: "5", name: "Beyoncé", genre: "R&B"},
+  "bob-dylan" => %{id: "6", name: "Bob Dylan", genre: "Folk"},
+  "taylor-swift" => %{id: "7", name: "Taylor Swift", genre: "Country/Pop"},
+  "kendrick-lamar" => %{id: "8", name: "Kendrick Lamar", genre: "Hip-Hop"}
+}
+
+defmodule ArtistLookup do
+  alias FuzzyCompare.SortedChunks
+
+  def get_artist_by_slug(artists, slug) do
+    case Map.get(artists, slug) do
+      nil -> 
+        available_slugs = Map.keys(artists)
+        {:error, %{error_message: "Artist not found for slug: #{slug}", available_artist_slugs: available_slugs}}
+      
+      artist -> {:ok, artist}
+    end
+  end
+
+  def suggest_closest_slug(artists, slug) do
+    case ArtistLookup.get_artist_by_slug(artists, slug) do
+      {:ok, artist} ->
+        {:ok, artist}
+
+      {:error, error_info} ->
+        closest_match = find_closest_match(slug, error_info.available_artist_slugs)
+
+        updated_error_info =
+          if closest_match do
+            Map.put(error_info, :suggested_slug, closest_match)
+          else
+            error_info
+          end
+
+        {:error, updated_error_info}
+    end
+  end
+
+  defp find_closest_match(_slug, []), do: nil
+
+  defp find_closest_match(slug, slugs) do
+    slugs
+    |> Enum.map(fn s -> {s, SortedChunks.substring_similarity(slug, s)} end)
+    |> Enum.max_by(fn {_slug, score} -> score end)
+    |> case do
+      {best_slug, score} when score > 0.7 -> best_slug
+      _ -> nil
+    end
+  end
+end
+
+
+artist_slug = "jk"
+
+
+case ArtistLookup.suggest_closest_slug(real_artists, artist_slug) do
+  {:ok, artist} -> IO.puts("Found: #{artist.name}, Genre: #{artist.genre}")
+
+  {:error, error_info} ->
+    IO.puts("#{error_info.error_message}")
+
+    # Only show suggestion if it exists
+    if Map.has_key?(error_info, :suggested_slug) do
+      IO.puts("Did you mean: #{error_info.suggested_slug}?")
+    end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+Artist not found for slug: jk
+Did you mean: michael-jackson?
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+## Album Data
+
+```elixir
+defmodule AlbumFactory do
+  # Function to create an album, requiring an `artist_id`
+  def create_album(artist_id, name \\ Faker.Lorem.sentence(), year_released \\ Faker.random_between(1950, Date.utc_today().year)) do
+    created_at = ArtistUtils.fake_created_at()
+    updated_at = ArtistUtils.fake_updated_at(created_at)
+
+    %{
+      id: Faker.UUID.v4(),    # Unique identifier
+      name: name,             # Provided or generated name
+      artist_id: artist_id,   # Links to an existing artist
+      year_released: year_released,
+      created_at: created_at,
+      updated_at: updated_at
+    }
+  end
+end
+
+# ✅ Create an artist first
+artist = ArtistFactory.create_artist()
+
+# ✅ Create an album linked to the generated artist
+album = AlbumFactory.create_album(artist.id, "Dark Side of the Moon")
+
+# ✅ Create another album for the same artist with a random name
+random_album = AlbumFactory.create_album(artist.id)
+
+# ✅ Return a tuple containing both albums
+albums_tuple = {album, random_album}
+
+# ✅ Display the result in Livebook
+albums_tuple
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{%{
+   id: "c436ce21-3bfd-4244-995d-1fcd114915e6",
+   name: "Dark Side of the Moon",
+   created_at: ~U[2025-02-18 21:01:43.554533Z],
+   updated_at: ~U[2025-02-25 06:57:58.137039Z],
+   artist_id: "bba3bd88-6bab-43e3-a76c-ec08bff3ff7d",
+   year_released: 1991
+ },
+ %{
+   id: "7fc8e79b-46a2-410d-9584-8616c6ae64a3",
+   name: "Soluta accusantium labore ut?",
+   created_at: ~U[2025-02-22 08:30:45.002402Z],
+   updated_at: ~U[2025-03-07 21:26:02.392366Z],
+   artist_id: "bba3bd88-6bab-43e3-a76c-ec08bff3ff7d",
+   year_released: 1975
+ }}
+```
